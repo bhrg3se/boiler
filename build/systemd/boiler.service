@@ -1,0 +1,12 @@
+[Unit]
+Description=Boiler
+Documentation=https://boiler
+#Requires= postgresql.service
+
+[Service]
+ExecStart=/usr/local/bin/boiler -f
+ExecStop=/usr/bin/pkill boiler
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
