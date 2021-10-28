@@ -23,13 +23,9 @@ type Config struct {
 		Listen string `toml:"listen"`
 	} `toml:"server"`
 
-	Keys struct {
-		Private string
-		Public  string
-	}
 }
 
 type JWTToken struct {
 	jwt.StandardClaims
-	UserID string `json:"userId"`
+	UserID string `json:"userID"`
 }

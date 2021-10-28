@@ -1,7 +1,6 @@
-package main
+package server
 
 import (
-	"boiler/migrations"
 	"boiler/models"
 	"boiler/routes"
 	"boiler/store"
@@ -14,11 +13,13 @@ import (
 )
 
 func StartServer() {
-	path := flag.String("c", "/etc/boiler/config", "config file location")
 	writeToFile := flag.Bool("f", false, "write logs to file")
 	flag.Parse()
 
-	config := parseConfig(*path)
+	// parse config file
+	config := parseConfig("/etc/boiler/")
+
+	//set log level
 	level, err := logrus.ParseLevel(config.Logging.Level)
 	if err != nil {
 		level = logrus.ErrorLevel
@@ -26,6 +27,7 @@ func StartServer() {
 	logrus.SetLevel(level)
 	logrus.SetReportCaller(true)
 
+	// create log file if enabled
 	if *writeToFile {
 		f, err := os.OpenFile("/var/log/boiler.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, os.ModePerm)
 		if err != nil {
@@ -34,11 +36,13 @@ func StartServer() {
 		logrus.SetOutput(f)
 	}
 
+	// create database connections and other dependencies
 	store.State = store.NewRealStore(config)
 
-	migrations.Migrate(store.State.DB)
-
+	//initialize API routes
 	r := routes.Routes()
+
+	// start server
 	logrus.Infof("starting server at: %s", config.Server.Listen)
 	logrus.Error(http.ListenAndServe(config.Server.Listen, r))
 }
@@ -53,12 +57,13 @@ func parseConfig(path string) models.Config {
 
 	viper.SetConfigName("config")
 	viper.AddConfigPath(absPath)
-	if err := viper.ReadInConfig(); err != nil {
-		panic(err)
+
+	if err = viper.ReadInConfig(); err != nil {
+		logrus.Fatalf("could not read config file: %v",err)
 	}
 	err = viper.Unmarshal(&config)
 	if err != nil {
-		panic("config file invalid: " + err.Error())
+		logrus.Fatalf("config file invalid: %v" , err)
 	}
 
 	return config

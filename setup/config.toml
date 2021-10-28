@@ -1,0 +1,11 @@
+[database]
+    host="db"
+    user="bhrg3se"
+    password=""
+    port="5432"
+    name="boiler"
+[logging]
+    level="TRACE"
+[server]
+    listen="0.0.0.0:9090"
+

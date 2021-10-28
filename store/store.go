@@ -2,80 +2,52 @@ package store
 
 import (
 	"boiler/models"
+	"crypto/rsa"
 	"database/sql"
-	"fmt"
-	_ "github.com/lib/pq"
-	"github.com/sirupsen/logrus"
-	"path/filepath"
-	"time"
 )
 
-var State Store
-
-type Store struct {
-	DB     *sql.DB
-	Config models.Config
-}
-
-func NewRealStore(config models.Config) Store {
-	return Store{
-		DB:     dbConn(config),
-		Config: config,
+type RealStore struct {
+	db     *sql.DB
+	config models.Config
+	jwtKey struct {
+		public  *rsa.PublicKey
+		private *rsa.PrivateKey
 	}
 }
 
-func dbConn(config models.Config) *sql.DB {
 
-	var str string
-	if config.Database.SSL {
-		caCert, _ := filepath.Abs(config.Database.CaCertPath)
-		userCert, _ := filepath.Abs(config.Database.UserCertPath)
-		userKey, _ := filepath.Abs(config.Database.UserKeyPath)
+func (rs RealStore) CreateUser(user *models.User) error {
+	_,err := rs.db.Exec(`INSERT INTO users (id,email,password,name,created_at,updated_at) VALUES ($1,$2,$3,$4,now(),now())`,
+		user.ID,user.Email,user.Password,user.Name)
+	return err
+}
 
-		str = fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=verify-full&sslrootcert=%s&sslcert=%s&sslkey=%s",
-			config.Database.User,
-			config.Database.Password,
-			config.Database.Host,
-			config.Database.Port,
-			config.Database.Name,
-			caCert,
-			userCert,
-			userKey)
+func (rs RealStore) FetchUser(userID string) (*models.User, error) {
+	var user models.User
+	err := rs.db.QueryRow(`SELECT id,name,email,created_at,updated_at FROM users where id=$1`, userID).
+		Scan(&user.ID, &user.Name, &user.Email,&user.CreatedAt,&user.UpdatedAt)
+	return &user, err
+}
 
-	} else {
-		str = fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=disable", config.Database.User,
-			config.Database.Password,
-			config.Database.Host,
-			config.Database.Port,
-			config.Database.Name)
-	}
+func (rs RealStore) FetchUserWithPassword(email string) (*models.User, error) {
+	var user models.User
+	err := rs.db.QueryRow(`SELECT id,email,password,name FROM users where email=$1`, email).
+		Scan(&user.ID, &user.Email, &user.Password, &user.Name)
+	return &user, err
+}
 
-	fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=verify-full&sslrootcert=%s&sslcert=%s&sslkey=%s")
-	str = fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=verify-full&sslrootcert=%s&sslcert=%s&sslkey=%s",
-		config.Database.User,
-		config.Database.Password,
-		config.Database.Host,
-		config.Database.Port,
-		config.Database.Name)
 
-	db, err := sql.Open("postgres", str)
-	if err != nil {
-		panic(err.Error())
-	}
+// GetConfig returns config
+func (rs RealStore) GetConfig() models.Config {
+	return rs.config
+}
 
-	//Check if the connection is successful by establishing a connection.
-	//Retry upto 10 times if connection is not successful
-	for retryCount := 0; retryCount < 10; retryCount++ {
-		err := db.Ping()
-		if err == nil {
-			fmt.Println("database connection successful")
-			return db
-		}
-		logrus.Error(err)
-		logrus.Error("could not connect to database: retrying...")
-		time.Sleep(time.Second)
-	}
+// GetJWTPrivateKey gets the private key used for generating JWT tokens
+func (rs RealStore) GetJWTPrivateKey() *rsa.PrivateKey {
+	return rs.jwtKey.private
+}
 
-	logrus.Fatal("could not connect to database")
-	return nil
+// GetJWTPublicKey gets the private key used to verify JWT tokens
+func (rs RealStore) GetJWTPublicKey() *rsa.PublicKey {
+	return rs.jwtKey.public
 }

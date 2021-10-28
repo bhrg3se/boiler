@@ -2,8 +2,15 @@ package utils
 
 import (
 	"encoding/json"
+	"github.com/go-playground/validator/v10"
 	"net/http"
 )
+
+var validatorInstance *validator.Validate
+
+func init() {
+	validatorInstance = validator.New()
+}
 
 func SuccessResponse(writer http.ResponseWriter, data interface{}, status int) {
 	writer.Header().Set("Content-Type", "application/json")
@@ -12,7 +19,7 @@ func SuccessResponse(writer http.ResponseWriter, data interface{}, status int) {
 	resp := apiResponse{
 		Status:  true,
 		Message: "",
-		Body:    data,
+		Data:    data,
 	}
 	marshalledResp, _ := json.Marshal(resp)
 	writer.Write(marshalledResp)
@@ -27,8 +34,20 @@ func ErrorResponse(writer http.ResponseWriter, message string, status int) {
 	writer.Write(marshalledData)
 }
 
+//ParseAndValidateRequest unmarshalls request body into given struct and also verify json fields
+func ParseAndValidateRequest(r *http.Request, reqStruct interface{}) error {
+
+	if err := json.NewDecoder(r.Body).Decode(reqStruct); err != nil {
+		return err
+	}
+	if err := validatorInstance.Struct(reqStruct); err != nil {
+		return err
+	}
+	return nil
+}
+
 type apiResponse struct {
-	Status  bool        `json:"status" omitempty`
-	Message string      `json:"message" omitempty`
-	Body    interface{} `json:"body" omitempty`
+	Status  bool        `json:"status"`
+	Message string      `json:"message,omitempty"`
+	Data    interface{} `json:"data,omitempty"`
 }

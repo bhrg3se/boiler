@@ -1,6 +1,7 @@
 package main
 
-func main() {
+import "boiler/server"
 
-	StartServer()
+func main() {
+	server.StartServer()
 }

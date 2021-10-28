@@ -1,0 +1,30 @@
+version: '3.8'
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      SERVER.LISTEN: localhost:9090
+    volumes:
+      - type: bind
+        source: ./setup/config.toml
+        target: /etc/boiler/config.toml
+
+    ports:
+      - "9090:9090"
+    links:
+      - db
+    depends_on:
+      - db
+
+  db:
+    image: postgres:13.0
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_USER: bhrg3se
+      POSTGRES_PASSWORD:
+      POSTGRES_DB: boiler
+    volumes:
+      - ./setup/init.sql:/docker-entrypoint-initdb.d/init.sql
+
